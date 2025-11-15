@@ -13,3 +13,23 @@
 (test (eq (defpackage :test-package (:use cl)) (find-package :test-package)))
 ;; Now we expect there to be symbols
 (test (eq (find-symbol "CAR" :test-package) 'cl::car))
+(test (unuse-package "CL" :test-package))
+;; Now symbols should be gone
+(test (eq (find-symbol "CAR" :test-package) nil))
+(test (use-package "CL" :test-package))
+(test (eq (find-symbol "CAR" :test-package) 'cl::car))
+
+(test (delete-package :test-package))
+(test (defpackage :test-package (:import-from cl cdr)))
+(test (eq (find-symbol "CDR" :test-package) 'cl::cdr))
+
+(test (delete-package :test-package))
+(test (defpackage :test-package (:export cdr) (:import-from cl cdr)))
+(test (eq (nth-value 1 (find-symbol "CDR" :test-package)) :external))
+
+(test (defpackage :test-package-2 (:use :test-package)))
+(test (eq (find-symbol "CDR" :test-package-2) 'cl::cdr))
+;; Delete :test-package unuses it in :test-package-2
+(test (delete-package :test-package))
+(test (eq (find-symbol "CDR" :test-package-2) nil))
+(test (equal (package-use-list :test-package-2) nil))
