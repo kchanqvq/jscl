@@ -1733,7 +1733,8 @@
 
 
 (defmacro with-compilation-environment (&body body)
-  `(let ((*literal-table* nil)
+  `(let ((*package* *package*)
+         (*literal-table* nil)
          (*variable-counter* 0)
          (*gensym-counter* 0)
          (*literal-counter* 0))
