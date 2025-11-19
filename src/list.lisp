@@ -504,43 +504,44 @@
 
 ;;; mapping functions
 
-;;; a helper function for implementation of MAPC, MAPCAR, MAPCAN,
-;;; MAPL, MAPLIST, and MAPCON
+;;; a helper for implementation of MAPC, MAPCAR, MAPCAN, MAPL,
+;;; MAPLIST, and MAPCON
 ;;;
 ;;; Map the designated function over the arglists in the appropriate
 ;;; way. It is done when any of the arglists runs out. Until then, it
 ;;; CDRs down the arglists calling the function and accumulating
 ;;; results as desired.
-(defun map1 (fun-designator arglists accumulate take-car)
-  (do* ((fun fun-designator)
-        (non-acc-result (car arglists))
-        (ret-list (list nil))
-        (temp ret-list)
-        (res nil)
-        (args (make-list (length arglists))))
-       ((dolist (x arglists) (or x (return t)))
-        (if accumulate
-            (cdr ret-list)
-            non-acc-result))
-    (do ((l arglists (cdr l))
-         (arg args (cdr arg)))
-        ((null l))
-      (setf (car arg) (if take-car (caar l) (car l)))
-      (setf (car l) (cdar l)))
-    (setq res (apply fun args))
-    (case accumulate
-      (:nconc
-       (when res
-         (setf (cdr temp) res)
-         ;; KLUDGE: it is said that MAPCON is equivalent to
-         ;; (apply #'nconc (maplist ...)) which means (nconc 1) would
-         ;; return 1, but (nconc 1 1) should signal an error.
-         ;; The transformed MAP code returns the last result, do that
-         ;; here as well for consistency and simplicity.
-         (when (consp res)
-           (setf temp (last res)))))
-      (:list (setf (cdr temp) (list res)
-                   temp (cdr temp))))))
+(defmacro map1 (fun-designator arglists accumulate take-car)
+  `(do* ((fun ,fun-designator)
+         (arglists ,arglists)
+         (non-acc-result (car arglists))
+         (ret-list (list nil))
+         (temp ret-list)
+         (res nil)
+         (args (make-list (length arglists))))
+        ((dolist (x arglists) (or x (return t)))
+         ,(if accumulate
+              `(cdr ret-list)
+              `non-acc-result))
+     (do ((l arglists (cdr l))
+          (arg args (cdr arg)))
+         ((null l))
+       (setf (car arg) ,(if take-car `(caar l) `(car l)))
+       (setf (car l) (cdar l)))
+     (setq res (apply fun args))
+     ,(case accumulate
+        (:nconc
+         `(when res
+           (setf (cdr temp) res)
+           ;; KLUDGE: it is said that MAPCON is equivalent to
+           ;; (apply #'nconc (maplist ...)) which means (nconc 1) would
+           ;; return 1, but (nconc 1 1) should signal an error.
+           ;; The transformed MAP code returns the last result, do that
+           ;; here as well for consistency and simplicity.
+           (when (consp res)
+             (setf temp (last res)))))
+        (:list `(setf (cdr temp) (list res)
+                     temp (cdr temp))))))
 
 (defun mapc (function list &rest more-lists)
   "Apply FUNCTION to successive elements of lists. Return the second argument."
