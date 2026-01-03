@@ -273,6 +273,20 @@
            (js-format ",")
            (js-expr operand no-comma)))
        (js-format ")"))
+      ;; Function call with spread syntax
+      (apply
+       (js-expr (car args) 20)
+       (js-format "(")
+       (let ((regular (butlast (cdr args)))
+             (spread (car (last args))))
+         (unless spread
+           (error "Invalid arguments to APPLY: ~S" args))
+         (dolist (operand regular)
+           (js-expr operand no-comma)
+           (js-format ","))
+         (js-format "...")
+         (js-expr spread no-comma))
+       (js-format ")"))
       ;; Object syntax
       (object
        (js-object-initializer args))

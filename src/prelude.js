@@ -42,25 +42,25 @@ var internals = jscl.internals = Object.create(null);
 
 internals.globalEval = function(code, data){
   var geval = eval;             // Just an indirect eval
-  var fn = geval('(function(values, internals, data){ "use strict"; ' + code + '; })');
-  return fn(internals.mv, internals, data);
+  var fn = geval('(function(isMV, internals, data){ "use strict"; ' + code + '; })');
+  return fn(true, internals, data);
 };
 
-internals.pv = function(x) {
-  return x==undefined? nil: x;
-};
-
-internals.mv = function(...args){
-  args['multiple-value'] = true;
-  return args;
+internals.mv = function(isMV, ...args){
+  if(isMV){
+    args['multiple-value'] = true;
+    return args;
+  }
+  else
+    return args[0]==undefined? nil: args[0];
 };
 
 internals.forcemv = function(x) {
-  return typeof x == 'object' && x !== null && 'multiple-value' in x? x: internals.mv(x);
+  return typeof x == 'object' && x !== null && 'multiple-value' in x? x: internals.mv(true, x);
 };
 
 internals.error = function(...args){
-  errorSym.fvalue(internals.pv, ...args);
+  errorSym.fvalue(false, ...args);
 }
 
 internals.typeError = function (datum, expectedType) {
@@ -80,7 +80,7 @@ internals.typeError = function (datum, expectedType) {
 // #j:Date) will be converted into a Lisp function. We track the
 // original function in the jscl_original property as we can't wrap
 // the primitive constructor in a Lisp function or it will not work.
-internals.newInstance = function(values, ct, ...args){
+internals.newInstance = function(isMV, ct, ...args){
   var newCt = ct.bind.bind(ct.jscl_original || ct)(ct);
   return new newCt(...args);
 };
@@ -109,7 +109,7 @@ internals.Bitwise_and = function (x, y) { return x & y;};
 // `eval' compiles the forms and execute the Javascript code at
 // toplevel with `js-eval', so it is necessary to return multiple
 // values from the eval function.
-var values = internals.mv;
+var isMV = true;
 
 internals.checkArgsAtLeast = function(args, n){
   if (args < n) throw 'too few arguments';
@@ -248,7 +248,7 @@ internals.lisp_to_js = function (x) {
         return( function(...args){
             for (var i in args)
                 args[i] = internals.js_to_lisp(args[i]);
-          return internals.lisp_to_js(x.bind(this)(internals.pv, ...args));
+          return internals.lisp_to_js(x.bind(this)(false, ...args));
         });
     }
   }
@@ -264,10 +264,10 @@ internals.js_to_lisp = function (x) {
     return nil;
   else if (typeof x == 'function'){
     // Trampoline calling the JS function
-    var trampoline = function(values, ...args){
+    var trampoline = function(isMV, ...args){
       for (var i in args)
         args[i] = internals.lisp_to_js(args[i]);
-      return values(internals.js_to_lisp(x.bind(this)(...args)));
+      return internals.mv(isMV, internals.js_to_lisp(x.bind(this)(...args)));
     };
     trampoline.jscl_original = x;
     return trampoline;
